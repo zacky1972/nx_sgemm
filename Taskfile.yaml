@@ -8,7 +8,7 @@ tasks:
           if [ -z $USE_OPEN_BLAS ]; then
           echo -DACCELERATE_LAPACK_ILP64
           else
-          echo -I$(brew --prefix openblas)/include
+          echo -I$(brew --prefix openblas)/include -DUSE_OPEN_BLAS
           fi
       LDFLAGS_BLAS:
         sh: |
