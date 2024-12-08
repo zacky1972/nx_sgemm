@@ -1,0 +1,64 @@
+version: '3'
+
+tasks:
+  default:
+    vars:
+      PRIV: $MIX_APP_PATH/priv
+      BUILD: $MIX_APP_PATH/obj
+      NIF: "{{.PRIV}}/libnif.so"
+      ERLANG_PATH:
+        sh: elixir --eval ':code.root_dir |> to_string() |> IO.puts'
+      ERL_EI_INCLUDE_DIR: 
+        sh: echo "${ERL_EI_INCLUDE_DIR:-{{.ERLANG_PATH}}/usr/include}"
+      ERL_EI_LIBDIR:
+        sh: echo "${ERL_EI_LIBDIR:-{{.ERLANG_PATH}}/usr/lib}"
+      CFLAGS_O:
+        sh: |
+          if [ -z $CROSSCOMPILE ]; then
+          if [ $(uname -s) -ne 'Darwin' ]; then
+          echo -fPIC
+          else
+          :
+          fi
+          else
+          echo -fPIC
+          fi
+      LDFLAGS_O:
+        sh: |
+          if [ -z $CROSSCOMPILE ]; then
+          if [ $(uname -s) -ne 'Darwin' ]; then
+          echo -fPIC -shared
+          else
+          echo -undefined dynamic_lookup -dynamiclib
+          fi
+          else
+          echo -fPIC -shared
+          fi
+      CFLAGS: >-
+        -I{{.ERL_EI_INCLUDE_DIR}}
+        $CFLAGS
+        {{.CFLAGS_O}}
+        -std=c11
+        -O3
+        -Wall
+        -Wextra
+        -Wno-unused-function
+        -Wno-unused-parameter
+        -Wno-missing-field-initializers
+      LDFLAGS: >-
+        -L{{.ERL_EI_LIBDIR}}
+        $LDFLAGS
+        {{.LDFLAGS_O}}
+      NIF_SRC_DIR: nif_src
+      C_SRC: $NIF_SRC_DIR/libnif.c
+    preconditions:
+      - sh: '[ -n {{.ERLANG_PATH}} ]'
+        msg: Could not find the Elixir installation. Check to see that 'elixir'.
+    cmds:
+      - mkdir -p {{.PRIV}}
+      - mkdir -p {{.BUILD}}
+      - cc -c {{.CFLAGS}} -o {{.BUILD}}/libnif.o {{.NIF_SRC_DIR}}/libnif.c
+      - cc -o {{.NIF}} {{.LDFLAGS}} {{.BUILD}}/libnif.o
+    status:
+      - test -f {{.NIF}}
+    silent: true
