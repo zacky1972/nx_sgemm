@@ -3,6 +3,20 @@ version: '3'
 tasks:
   default:
     vars:
+      CFLAGS_BLAS:
+        sh: |
+          if [ -z $USE_OPEN_BLAS ]; then
+          echo -DACCELERATE_LAPACK_ILP64
+          else
+          echo -I$(brew --prefix openblas)/include
+          fi
+      LDFLAGS_BLAS:
+        sh: |
+          if [ -z $USE_OPEN_BLAS ]; then
+          echo -framework Accelerate
+          else
+          echo -lblas -L$(brew --prefix openblas)/lib
+          fi
       PRIV: $MIX_APP_PATH/priv
       BUILD: $MIX_APP_PATH/obj
       NIF: "{{.PRIV}}/libnif.so"
@@ -37,6 +51,7 @@ tasks:
       CFLAGS: >-
         -I{{.ERL_EI_INCLUDE_DIR}}
         $CFLAGS
+        {{.CFLAGS_BLAS}}
         {{.CFLAGS_O}}
         -std=c11
         -O3
@@ -48,6 +63,7 @@ tasks:
       LDFLAGS: >-
         -L{{.ERL_EI_LIBDIR}}
         $LDFLAGS
+        {{.LDFLAGS_BLAS}}
         {{.LDFLAGS_O}}
       NIF_SRC_DIR: nif_src
       C_SRC: $NIF_SRC_DIR/libnif.c
