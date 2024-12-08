@@ -24,7 +24,8 @@ defmodule NxSgemm.MixProject do
     [
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
-      {:ex_task, "~> 0.1", runtime: false}
+      {:ex_task, "~> 0.1", runtime: false},
+      {:nx, "~> 0.9"}
     ]
   end
 end
