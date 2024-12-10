@@ -6,7 +6,7 @@ tasks:
       CFLAGS_BLAS:
         sh: |
           if [ -z $USE_OPEN_BLAS ]; then
-          echo -DACCELERATE_LAPACK_ILP64
+          echo -DACCELERATE_NEW_LAPACK -DACCELERATE_LAPACK_ILP64
           else
           echo -I$(brew --prefix openblas)/include -DUSE_OPEN_BLAS
           fi
