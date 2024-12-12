@@ -1,23 +1,16 @@
 # NxSgemm
 
-**TODO: Add description**
+Sample code of Nx multiplication with BLAS.
 
 ## Installation
-
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `nx_sgemm` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:nx_sgemm, "~> 0.1.0"}
+    {:nx_sgemm, "~> 0.1", github: "zacky1972/nx_sgemm", branch: "main"}
   ]
 end
 ```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/nx_sgemm>.
 
 ## License
 
