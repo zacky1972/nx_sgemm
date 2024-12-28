@@ -5,14 +5,22 @@ tasks:
     vars:
       CFLAGS_BLAS:
         sh: |
-          if [ -z $USE_OPEN_BLAS ]; then
+          if [ $(uname -s) != 'Darwin' ]; then
+          if [ $(uname -m) = 'aarch64' ]; then
+          echo -I/usr/include/aarch64-linux-gnu/ -DUSE_OPEN_BLAS
+          fi
+          elif [ -z $USE_OPEN_BLAS ]; then
           echo -DACCELERATE_NEW_LAPACK -DACCELERATE_LAPACK_ILP64
           else
           echo -I$(brew --prefix openblas)/include -DUSE_OPEN_BLAS
           fi
       LDFLAGS_BLAS:
         sh: |
-          if [ -z $USE_OPEN_BLAS ]; then
+          if [ $(uname -s) != 'Darwin' ]; then
+          if [ $(uname -m) = 'aarch64' ]; then
+          echo -lblas -L$(dirname $(update-alternatives --list libopenblas.so-aarch64-linux-gnu))
+          fi
+          elif [ -z $USE_OPEN_BLAS ]; then
           echo -framework Accelerate
           else
           echo -lblas -L$(brew --prefix openblas)/lib
@@ -29,7 +37,7 @@ tasks:
       CFLAGS_O:
         sh: |
           if [ -z $CROSSCOMPILE ]; then
-          if [ $(uname -s) -ne 'Darwin' ]; then
+          if [ $(uname -s) != 'Darwin' ]; then
           echo -fPIC
           else
           :
@@ -40,7 +48,7 @@ tasks:
       LDFLAGS_O:
         sh: |
           if [ -z $CROSSCOMPILE ]; then
-          if [ $(uname -s) -ne 'Darwin' ]; then
+          if [ $(uname -s) != 'Darwin' ]; then
           echo -fPIC -shared
           else
           echo -undefined dynamic_lookup -dynamiclib
@@ -74,7 +82,7 @@ tasks:
       - mkdir -p {{.PRIV}}
       - mkdir -p {{.BUILD}}
       - cc -c {{.CFLAGS}} -o {{.BUILD}}/libnif.o {{.NIF_SRC_DIR}}/libnif.c
-      - cc -o {{.NIF}} {{.LDFLAGS}} {{.BUILD}}/libnif.o
+      - cc -o {{.NIF}} {{.BUILD}}/libnif.o {{.LDFLAGS}}
     status:
       - test -f {{.NIF}}
     silent: true
