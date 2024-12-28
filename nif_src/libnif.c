@@ -87,11 +87,58 @@ static ERL_NIF_TERM mul_nif_u8_tensor_u8_scalar(ErlNifEnv *env, int argc, const 
     return enif_make_binary(env, &out_data);
 }
 
+static ERL_NIF_TERM dot_nif_f32_matrix_f32_matrix(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
+{
+    if (__builtin_expect(argc != 5, false)) {
+        return enif_make_badarg(env);
+    }
+
+    ErlNifUInt64 m;
+    if (__builtin_expect(!enif_get_uint64(env, argv[0], &m), false)) {
+        return enif_make_badarg(env);
+    }
+
+    ErlNifUInt64 o;
+    if (__builtin_expect(!enif_get_uint64(env, argv[1], &o), false)) {
+        return enif_make_badarg(env);
+    }
+
+    ErlNifUInt64 n;
+    if (__builtin_expect(!enif_get_uint64(env, argv[2], &n), false)) {
+        return enif_make_badarg(env);
+    }
+
+    ERL_NIF_TERM binary_term_a = argv[3];
+    ErlNifBinary a_data;
+    if (__builtin_expect(!enif_inspect_binary(env, binary_term_a, &a_data), false)) {
+        return enif_make_badarg(env);
+    }
+    float *a = (float *)a_data.data;
+
+    ERL_NIF_TERM binary_term_b = argv[4];
+    ErlNifBinary b_data;
+    if (__builtin_expect(!enif_inspect_binary(env, binary_term_b, &b_data), false)) {
+        return enif_make_badarg(env);
+    }
+    float *b = (float *)b_data.data;
+
+    ErlNifBinary c_data;
+    if (__builtin_expect(!enif_alloc_binary(m * o * sizeof(float), &c_data), false)) {
+        return enif_make_badarg(env);
+    }
+    float *c = (float *)c_data.data;
+
+    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, o, n, 1.0, a, n, b, o, 0.0, c, o);
+
+    return enif_make_binary(env, &c_data);
+}
+
 static ErlNifFunc nif_funcs [] =
 {
     {"ok", 0, ok},
     {"mul_nif_f32_tensor_f32_scalar", 3, mul_nif_f32_tensor_f32_scalar},
-    {"mul_nif_u8_tensor_u8_scalar", 3, mul_nif_u8_tensor_u8_scalar}
+    {"mul_nif_u8_tensor_u8_scalar", 3, mul_nif_u8_tensor_u8_scalar},
+    {"dot_nif_f32_matrix_f32_matrix", 5, dot_nif_f32_matrix_f32_matrix}
 };
 
 ERL_NIF_INIT(Elixir.NxSgemm, nif_funcs, NULL, NULL, NULL, NULL)
