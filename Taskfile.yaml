@@ -8,6 +8,10 @@ tasks:
           if [ $(uname -s) != 'Darwin' ]; then
           if [ $(uname -m) = 'aarch64' ]; then
           echo -I/usr/include/aarch64-linux-gnu/ -DUSE_OPEN_BLAS
+          elif [ $(uname -m) = 'x86_64' ]; then
+          echo -I/usr/include/x86_64-linux-gnu/ -DUSE_OPEN_BLAS
+          else
+          exit 1
           fi
           elif [ -z $USE_OPEN_BLAS ]; then
           echo -DACCELERATE_NEW_LAPACK -DACCELERATE_LAPACK_ILP64
@@ -19,6 +23,10 @@ tasks:
           if [ $(uname -s) != 'Darwin' ]; then
           if [ $(uname -m) = 'aarch64' ]; then
           echo -lblas -L$(dirname $(update-alternatives --list libopenblas.so-aarch64-linux-gnu))
+          elif [ $(uname -m) = 'x86_64' ]; then
+          echo -lblas -L$(dirname $(update-alternatives --list libopenblas.so-x86_64-linux-gnu))
+          else
+          exit 1
           fi
           elif [ -z $USE_OPEN_BLAS ]; then
           echo -framework Accelerate
