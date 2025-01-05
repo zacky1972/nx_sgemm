@@ -26,6 +26,10 @@ jobs:
         otp-version: [ '27.2', '26.2.5.6', '25.3.2.16' ]
 
     steps:
+    - name: Install OpenBLAS
+      run: |
+        sudo apt update
+        sudo apt install libopenblas-dev
     - uses: actions/checkout@v4
     - name: Set up Elixir
       id: beam
