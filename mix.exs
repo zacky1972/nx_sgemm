@@ -8,7 +8,7 @@ defmodule NxSgemm.MixProject do
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      compilers: [:ex_task] ++ Mix.compilers
+      compilers: [:ex_task] ++ Mix.compilers()
     ]
   end
 
