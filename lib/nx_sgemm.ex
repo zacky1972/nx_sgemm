@@ -81,9 +81,9 @@ defmodule NxSgemm do
         %{
           a
           | data: %{
-            a.data
-            | state: mul_nif_f32_tensor_f32_scalar(Nx.size(a), a.data.state, b)
-          }
+              a.data
+              | state: mul_nif_f32_tensor_f32_scalar(Nx.size(a), a.data.state, b)
+            }
         }
     end
   end
@@ -94,9 +94,9 @@ defmodule NxSgemm do
         %{
           a
           | data: %{
-            a.data
-            | state: mul_nif_u8_tensor_u8_scalar(Nx.size(a), a.data.state, b)
-          }
+              a.data
+              | state: mul_nif_u8_tensor_u8_scalar(Nx.size(a), a.data.state, b)
+            }
         }
     end
   end
@@ -105,8 +105,11 @@ defmodule NxSgemm do
     multiply(b, a)
   end
 
-  defp mul_nif_f32_tensor_f32_scalar(_size, _a, _b), do: raise("NIF mul_nif_f32_tensor_f32_scalar/3 not implemented")
-  defp mul_nif_u8_tensor_u8_scalar(_size, _a, _b), do: raise("NIF mul_nif_u8_tensor_u8_scalar/3 not implemented")
+  defp mul_nif_f32_tensor_f32_scalar(_size, _a, _b),
+    do: raise("NIF mul_nif_f32_tensor_f32_scalar/3 not implemented")
+
+  defp mul_nif_u8_tensor_u8_scalar(_size, _a, _b),
+    do: raise("NIF mul_nif_u8_tensor_u8_scalar/3 not implemented")
 
   @doc """
   Returns the dot product of two tensors.
@@ -142,12 +145,13 @@ defmodule NxSgemm do
         %{
           c
           | data: %{
-            c.data
-            | state: dot_nif_f32_matrix_f32_matrix(m, o, n, a.data.state, b.data.state)
-          }
+              c.data
+              | state: dot_nif_f32_matrix_f32_matrix(m, o, n, a.data.state, b.data.state)
+            }
         }
     end
   end
 
-  defp dot_nif_f32_matrix_f32_matrix(_m, _o, _n, _a, _b), do: raise("NIF dot_nif_f32_matrix_f32_matrix/5 not implemented")
+  defp dot_nif_f32_matrix_f32_matrix(_m, _o, _n, _a, _b),
+    do: raise("NIF dot_nif_f32_matrix_f32_matrix/5 not implemented")
 end
