@@ -76,13 +76,22 @@ defmodule NxSgemm do
   end
 
   def multiply(a, b) when is_float(b) do
-    case Nx.type(a) do
-      {:f, 32} ->
+    case {Nx.type(a), SME.available?() and SME.use?()} do
+      {{:f, 32}, false} ->
         %{
           a
           | data: %{
               a.data
               | state: mul_nif_f32_tensor_f32_scalar(Nx.size(a), a.data.state, b)
+            }
+        }
+
+      {{:f, 32}, true} ->
+        %{
+          a
+          | data: %{
+              a.data
+              | state: mul_nif_f32_tensor_f32_scalar_sme(Nx.size(a), a.data.state, b)
             }
         }
     end
@@ -107,6 +116,9 @@ defmodule NxSgemm do
 
   defp mul_nif_f32_tensor_f32_scalar(_size, _a, _b),
     do: raise("NIF mul_nif_f32_tensor_f32_scalar/3 not implemented")
+
+  defp mul_nif_f32_tensor_f32_scalar_sme(_size, _a, _b),
+    do: raise("NIF mul_nif_f32_tensor_f32_scalar_sme/3 not implemented")
 
   defp mul_nif_u8_tensor_u8_scalar(_size, _a, _b),
     do: raise("NIF mul_nif_u8_tensor_u8_scalar/3 not implemented")

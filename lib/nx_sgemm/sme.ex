@@ -2,6 +2,20 @@ defmodule SME do
   @moduledoc """
   Module for Scalable Matrix Extension (SME).
   """
+  use Agent
+
+  def start_link(initial_use_value) when is_boolean(initial_use_value) do
+    Agent.start_link(fn -> initial_use_value end, name: __MODULE__)
+  end
+
+  def use?() do
+    Agent.get(__MODULE__, & &1)
+  end
+
+  def set_use(boolean) when is_boolean(boolean) do
+    Agent.update(__MODULE__, fn _ -> boolean end)
+  end
+
   def available?() do
     {:ok, pid} = Task.Supervisor.start_link()
 

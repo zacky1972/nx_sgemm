@@ -18,6 +18,11 @@ tasks:
           else
           echo -I$(brew --prefix openblas)/include -DUSE_OPEN_BLAS
           fi
+      CFLAGS_SME:
+        sh: |
+          if [[ $SME_AVAILABLE = "true" ]]; then
+            echo -march=armv9-a+sme -DSME_AVAILABLE
+          fi
       LDFLAGS_BLAS:
         sh: |
           if [ $(uname -s) != 'Darwin' ]; then
@@ -68,6 +73,7 @@ tasks:
         -I{{.ERL_EI_INCLUDE_DIR}}
         $CFLAGS
         {{.CFLAGS_BLAS}}
+        {{.CFLAGS_SME}}
         {{.CFLAGS_O}}
         -std=c11
         -O3
