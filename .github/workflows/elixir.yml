@@ -53,3 +53,5 @@ jobs:
       run: mix credo
     - name: Run tests
       run: mix test
+    - name: Documentation
+      run: mix docs --warnings-as-errors
