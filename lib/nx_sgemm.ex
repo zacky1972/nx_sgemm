@@ -39,7 +39,7 @@ defmodule NxSgemm do
 
   ### Multiplying scalers
 
-      iex> NxSgemm.multiply(1, 2)
+      iex> NxSgemm.multiply().(1, 2)
       #Nx.Tensor<
         s32
         2
@@ -47,37 +47,45 @@ defmodule NxSgemm do
 
   ### Multiplying tensors and scalers
 
-      iex> NxSgemm.multiply(Nx.tensor([1, 2, 3], names: [:data], type: :u8), 1)
+      iex> NxSgemm.multiply().(Nx.tensor([1, 2, 3], names: [:data], type: :u8), 1)
       #Nx.Tensor<
         u8[data: 3]
         [1, 2, 3]
       >
 
-      iex> NxSgemm.multiply(1, Nx.tensor([1, 2, 3], names: [:data], type: :u8))
+      iex> NxSgemm.multiply().(1, Nx.tensor([1, 2, 3], names: [:data], type: :u8))
       #Nx.Tensor<
         u8[data: 3]
         [1, 2, 3]
       >
 
-      iex> NxSgemm.multiply(Nx.tensor([1.0, 2.0, 3.0], names: [:data], type: :f32), 2.0)
+      iex> NxSgemm.multiply().(Nx.tensor([1.0, 2.0, 3.0], names: [:data], type: :f32), 2.0)
       #Nx.Tensor<
         f32[data: 3]
         [2.0, 4.0, 6.0]
       >
 
-      iex> NxSgemm.multiply(2.0, Nx.tensor([1.0, 2.0, 3.0], names: [:data], type: :f32))
+      iex> NxSgemm.multiply().(2.0, Nx.tensor([1.0, 2.0, 3.0], names: [:data], type: :f32))
       #Nx.Tensor<
         f32[data: 3]
         [2.0, 4.0, 6.0]
       >
   """
-  def multiply(a, b) when is_integer(a) and is_integer(b) do
+  def multiply() do
+    if SME.available?() and SME.use?() do
+      &multiply_sme/2
+    else
+      &multiply_n/2
+    end
+  end
+
+  defp multiply_n(a, b) when is_integer(a) and is_integer(b) do
     Nx.tensor(a * b, type: :s32)
   end
 
-  def multiply(a, b) when is_float(b) do
-    case {Nx.type(a), SME.available?() and SME.use?()} do
-      {{:f, 32}, false} ->
+  defp multiply_n(a, b) when is_float(b) do
+    case Nx.type(a) do
+      {:f, 32} ->
         %{
           a
           | data: %{
@@ -85,19 +93,10 @@ defmodule NxSgemm do
               | state: mul_nif_f32_tensor_f32_scalar(Nx.size(a), a.data.state, b)
             }
         }
-
-      {{:f, 32}, true} ->
-        %{
-          a
-          | data: %{
-              a.data
-              | state: mul_nif_f32_tensor_f32_scalar_sme(Nx.size(a), a.data.state, b)
-            }
-        }
     end
   end
 
-  def multiply(a, b) when is_integer(b) when 0 <= b and b < 256 do
+  defp multiply_n(a, b) when is_integer(b) when 0 <= b and b < 256 do
     case Nx.type(a) do
       {:u, 8} ->
         %{
@@ -110,8 +109,42 @@ defmodule NxSgemm do
     end
   end
 
-  def multiply(a, b) when is_number(a) do
-    multiply(b, a)
+  defp multiply_n(a, b) when is_number(a) do
+    multiply_n(b, a)
+  end
+
+  defp multiply_sme(a, b) when is_integer(a) and is_integer(b) do
+    Nx.tensor(a * b, type: :s32)
+  end
+
+  defp multiply_sme(a, b) when is_float(b) do
+    case Nx.type(a) do
+      {:f, 32} ->
+        %{
+          a
+          | data: %{
+              a.data
+              | state: mul_nif_f32_tensor_f32_scalar_sme(Nx.size(a), a.data.state, b)
+            }
+        }
+    end
+  end
+
+  defp multiply_sme(a, b) when is_integer(b) when 0 <= b and b < 256 do
+    case Nx.type(a) do
+      {:u, 8} ->
+        %{
+          a
+          | data: %{
+              a.data
+              | state: mul_nif_u8_tensor_u8_scalar(Nx.size(a), a.data.state, b)
+            }
+        }
+    end
+  end
+
+  defp multiply_sme(a, b) when is_number(a) do
+    multiply_sme(b, a)
   end
 
   defp mul_nif_f32_tensor_f32_scalar(_size, _a, _b),
