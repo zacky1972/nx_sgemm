@@ -1,11 +1,16 @@
 #include <erl_nif.h>
 #include <stdbool.h>
 #include <stdint.h>
+
 #ifdef USE_OPEN_BLAS
 #include <cblas.h>
 #else // USE_OPEN_BLAS
 #include <Accelerate/Accelerate.h>
 #endif // USE_OPEN_BLAS
+
+#ifdef SME_AVAILABLE
+#include <arm_sme.h>
+#endif // SME_AVAILABLE
 
 static ERL_NIF_TERM ok(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
@@ -133,8 +138,72 @@ static ERL_NIF_TERM dot_nif_f32_matrix_f32_matrix(ErlNifEnv *env, int argc, cons
     return enif_make_binary(env, &c_data);
 }
 
+#ifdef SME_AVAILABLE
+__arm_locally_streaming
+__arm_new("za")
+void multiply_factor_in_to_out(float factor, float *in, float *out, ErlNifUInt64 vec_size)
+{
+    // Duplicate scalar across all lanes
+    svfloat32_t factor_vec = svdup_f32((float32_t)factor);
+
+    // Loop over the vector in chunks of vector size
+    // svcntw() gives the number of elements per register
+    for (ErlNifUInt64 i = 0; i < vec_size; i += svcntw()) {
+        svbool_t mask = svwhilelt_b32((uint64_t)i, (uint64_t)vec_size);
+
+        // Load the vector chunk into an SVE register
+        svfloat32_t vec_chunk = svld1_f32(mask, &in[i]);
+
+        // Perform element-wise multiplication
+        svfloat32_t result = svmul_f32_m(mask, vec_chunk, factor_vec);
+        
+        // Store the result back into memory
+        svst1_f32(mask, &out[i], result);   
+    }
+}
+
+static ERL_NIF_TERM mul_nif_f32_tensor_f32_scalar_sme(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
+{
+    if (__builtin_expect(argc != 3, false)) {
+        return enif_make_badarg(env);
+    }
+
+    ErlNifUInt64 vec_size;
+    if (__builtin_expect(!enif_get_uint64(env, argv[0], &vec_size), false)) {
+        return enif_make_badarg(env);
+    }
+
+    ERL_NIF_TERM binary_term = argv[1];
+    ErlNifBinary in_data;
+    if (__builtin_expect(!enif_inspect_binary(env, binary_term, &in_data), false)) {
+        return enif_make_badarg(env);
+    }
+
+    ERL_NIF_TERM double_term = argv[2];
+    double factor_d;
+    if (__builtin_expect(!enif_get_double(env, double_term, &factor_d), false)) {
+        return enif_make_badarg(env);
+    }
+
+    float *in = (float *)in_data.data;
+    ErlNifBinary out_data;
+    if (__builtin_expect(!enif_alloc_binary(vec_size * sizeof(float), &out_data), false)) {
+        return enif_make_badarg(env);
+    }
+
+    float *out = (float *)out_data.data;
+
+    multiply_factor_in_to_out((float)factor_d, in, out, vec_size);
+
+    return enif_make_binary(env, &out_data);    
+}
+#endif // SME_AVAILABLE
+
 static ErlNifFunc nif_funcs [] =
 {
+#ifdef SME_AVAILABLE
+    {"mul_nif_f32_tensor_f32_scalar_sme", 3, mul_nif_f32_tensor_f32_scalar_sme},
+#endif // SME_AVAILABLE
     {"ok", 0, ok},
     {"mul_nif_f32_tensor_f32_scalar", 3, mul_nif_f32_tensor_f32_scalar},
     {"mul_nif_u8_tensor_u8_scalar", 3, mul_nif_u8_tensor_u8_scalar},
