@@ -162,6 +162,33 @@ void multiply_factor_in_to_out(float factor, float *in, float *out, ErlNifUInt64
     }
 }
 
+__arm_locally_streaming
+__arm_new("za")
+void multiply_factor_in_to_out2(float factor, float *in, float *out, ErlNifUInt64 vec_size)
+{
+    // Duplicate scalar across all lanes
+    svfloat32_t factor_vec = svdup_f32((float32_t)factor);
+
+    // Loop over the vector in chunks of vector size
+    // svcntw() gives the number of elements per register
+    for (ErlNifUInt64 i = 0; i < vec_size; i += (svcntw() << 1)) {
+        svbool_t mask1 = svwhilelt_b32((uint64_t)i, (uint64_t)vec_size);
+        svbool_t mask2 = svwhilelt_b32((uint64_t)i+1, (uint64_t)vec_size);
+
+        // Load the vector chunk into an SVE register
+        svfloat32_t vec_chunk1 = svld1_f32(mask1, &in[i]);
+        svfloat32_t vec_chunk2 = svld1_f32(mask2, &in[i+1]);
+
+        // Perform element-wise multiplication
+        svfloat32_t result1 = svmul_f32_m(mask1, vec_chunk1, factor_vec);
+        svfloat32_t result2 = svmul_f32_m(mask2, vec_chunk2, factor_vec);
+        
+        // Store the result back into memory
+        svst1_f32(mask1, &out[i], result1);   
+        svst1_f32(mask2, &out[i+1], result2);   
+    }
+}
+
 static ERL_NIF_TERM mul_nif_f32_tensor_f32_scalar_sme(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
     if (__builtin_expect(argc != 3, false)) {
@@ -197,12 +224,49 @@ static ERL_NIF_TERM mul_nif_f32_tensor_f32_scalar_sme(ErlNifEnv *env, int argc, 
 
     return enif_make_binary(env, &out_data);    
 }
+
+static ERL_NIF_TERM mul_nif_f32_tensor_f32_scalar_sme2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
+{
+    if (__builtin_expect(argc != 3, false)) {
+        return enif_make_badarg(env);
+    }
+
+    ErlNifUInt64 vec_size;
+    if (__builtin_expect(!enif_get_uint64(env, argv[0], &vec_size), false)) {
+        return enif_make_badarg(env);
+    }
+
+    ERL_NIF_TERM binary_term = argv[1];
+    ErlNifBinary in_data;
+    if (__builtin_expect(!enif_inspect_binary(env, binary_term, &in_data), false)) {
+        return enif_make_badarg(env);
+    }
+
+    ERL_NIF_TERM double_term = argv[2];
+    double factor_d;
+    if (__builtin_expect(!enif_get_double(env, double_term, &factor_d), false)) {
+        return enif_make_badarg(env);
+    }
+
+    float *in = (float *)in_data.data;
+    ErlNifBinary out_data;
+    if (__builtin_expect(!enif_alloc_binary(vec_size * sizeof(float), &out_data), false)) {
+        return enif_make_badarg(env);
+    }
+
+    float *out = (float *)out_data.data;
+
+    multiply_factor_in_to_out2((float)factor_d, in, out, vec_size);
+
+    return enif_make_binary(env, &out_data);    
+}
 #endif // SME_AVAILABLE
 
 static ErlNifFunc nif_funcs [] =
 {
 #ifdef SME_AVAILABLE
     {"mul_nif_f32_tensor_f32_scalar_sme", 3, mul_nif_f32_tensor_f32_scalar_sme},
+    {"mul_nif_f32_tensor_f32_scalar_sme2", 3, mul_nif_f32_tensor_f32_scalar_sme2},
 #endif // SME_AVAILABLE
     {"ok", 0, ok},
     {"mul_nif_f32_tensor_f32_scalar", 3, mul_nif_f32_tensor_f32_scalar},

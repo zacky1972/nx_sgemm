@@ -71,9 +71,19 @@ defmodule NxSgemm do
         [2.0, 4.0, 6.0]
       >
   """
-  def multiply() do
+  def multiply(), do: multiply(1)
+
+  def multiply(1) do
     if SME.available?() and SME.use?() do
       &multiply_sme/2
+    else
+      &multiply_n/2
+    end
+  end
+
+  def multiply(2) do
+    if SME.available?() and SME.use?() do
+      &multiply_sme2/2
     else
       &multiply_n/2
     end
@@ -147,11 +157,48 @@ defmodule NxSgemm do
     multiply_sme(b, a)
   end
 
+  defp multiply_sme2(a, b) when is_integer(a) and is_integer(b) do
+    Nx.tensor(a * b, type: :s32)
+  end
+
+  defp multiply_sme2(a, b) when is_float(b) do
+    case Nx.type(a) do
+      {:f, 32} ->
+        %{
+          a
+          | data: %{
+              a.data
+              | state: mul_nif_f32_tensor_f32_scalar_sme2(Nx.size(a), a.data.state, b)
+            }
+        }
+    end
+  end
+
+  defp multiply_sme2(a, b) when is_integer(b) when 0 <= b and b < 256 do
+    case Nx.type(a) do
+      {:u, 8} ->
+        %{
+          a
+          | data: %{
+              a.data
+              | state: mul_nif_u8_tensor_u8_scalar(Nx.size(a), a.data.state, b)
+            }
+        }
+    end
+  end
+
+  defp multiply_sme2(a, b) when is_number(a) do
+    multiply_sme2(b, a)
+  end
+
   defp mul_nif_f32_tensor_f32_scalar(_size, _a, _b),
     do: raise("NIF mul_nif_f32_tensor_f32_scalar/3 not implemented")
 
   defp mul_nif_f32_tensor_f32_scalar_sme(_size, _a, _b),
     do: raise("NIF mul_nif_f32_tensor_f32_scalar_sme/3 not implemented")
+
+  defp mul_nif_f32_tensor_f32_scalar_sme2(_size, _a, _b),
+    do: raise("NIF mul_nif_f32_tensor_f32_scalar_sme2/3 not implemented")
 
   defp mul_nif_u8_tensor_u8_scalar(_size, _a, _b),
     do: raise("NIF mul_nif_u8_tensor_u8_scalar/3 not implemented")
